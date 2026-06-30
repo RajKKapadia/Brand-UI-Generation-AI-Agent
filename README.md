@@ -8,21 +8,26 @@ fails, and finalizes the best attempt.
 The main implementation lives in `agent.ipynb`. There is no packaged CLI or app
 entrypoint yet.
 
+## Process Overview
+
+![Brand UI generation process](assets/design-generation-process.png)
+
 ## Current Workflow
 
 The notebook implements this loop:
 
 ```text
 analyze brand
-generate concepts
-for attempt in 1..max_attempts:
-    generate image
-    evaluate image
-    if passing:
-        finalize
-        stop
-    revise prompt using feedback
-finalize best attempt
+generate exactly num_concepts concepts
+for each concept:
+    for attempt in 1..max_attempts:
+        generate image
+        evaluate image
+        if passing:
+            keep this concept's result
+            continue with the next concept
+        revise prompt using feedback
+finalize every concept and select the overall best attempt
 ```
 
 Main functions in `agent.ipynb`:
@@ -124,28 +129,31 @@ run_result = run_design_generation(
     threshold=4.6,
     max_attempts=3,
     num_concepts=3,
-    concept_index=0,
 )
 ```
 
-Preview the final image:
+Preview the overall best image:
 
 ```python
 display(Image(filename=run_result.final_image_path, width=600))
 ```
 
-`num_concepts` controls how many unique UI directions are generated. Use
-`concept_index` to choose which concept to run through the image/evaluation loop.
+`num_concepts` controls both how many unique UI directions are planned and how
+many final concept images are produced. A passing concept stops retrying, but
+generation continues with every remaining concept.
 
 ## Outputs
 
 `run_design_generation(...)` writes these files under `run_dir`:
 
 - `concept_<n>_attempt_<m>.png`: generated attempt images.
-- `final_image.png`: best or first passing image.
+- `concept_<n>_final.png`: best image for each requested concept.
+- `final_image.png`: highest-scoring image across all concepts.
 - `brand_analysis.json`: structured brand analysis.
 - `concepts.json`: generated concept options and prompts.
 - `attempts.jsonl`: attempt records with prompts, evaluations, and revisions.
+- `concept_results.json`: pass status, best attempt, and final image for each
+  concept.
 - `final_prompt.txt`: prompt used for the final selected image.
 - `final_evaluation.json`: final evaluation scores and feedback.
 - `summary.md`: compact run summary.
